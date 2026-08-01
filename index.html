@@ -229,8 +229,13 @@
     </div>
 
     <div class="form-group">
+        <label for="targetDays">Target Days (1 - 42)</label>
+        <input type="number" id="targetDays" value="35" min="1" max="42" step="1" placeholder="e.g. 4">
+    </div>
+
+    <div class="form-group">
         <label for="targetWeight">Target Body Weight (grams)</label>
-        <input type="number" id="targetWeight" value="2144" min="100" step="10">
+        <input type="number" id="targetWeight" value="2144" min="42" step="10">
     </div>
 
     <div class="form-group">
@@ -377,33 +382,67 @@
 
     let currentSummary = null;
 
+    // Auto-update weight when day is changed
+    document.getElementById('targetDays').addEventListener('input', function() {
+        const dayVal = parseInt(this.value);
+        if (!isNaN(dayVal) && dayVal >= 1 && dayVal <= 42) {
+            const match = ALL_DAYS.find(d => d.day === dayVal);
+            if (match) {
+                document.getElementById('targetWeight').value = match.bodyWeightG;
+            }
+        }
+    });
+
+    // Auto-update day when weight is changed
+    document.getElementById('targetWeight').addEventListener('input', function() {
+        const weightVal = parseInt(this.value);
+        if (!isNaN(weightVal) && weightVal > 0) {
+            let closest = ALL_DAYS.reduce((prev, curr) => {
+                return (Math.abs(curr.bodyWeightG - weightVal) < Math.abs(prev.bodyWeightG - weightVal)) ? curr : prev;
+            });
+            document.getElementById('targetDays').value = closest.day;
+        }
+    });
+
     function formatCurrency(amount) {
         return '₦' + amount.toLocaleString('en-NG');
     }
 
     function calculateSummary() {
         const numBirds = parseInt(document.getElementById('numBirds').value) || 0;
-        const targetWeight = parseInt(document.getElementById('targetWeight').value) || 0;
+        const targetDaysInput = parseInt(document.getElementById('targetDays').value);
+        const targetWeightInput = parseInt(document.getElementById('targetWeight').value);
         const userFcrInput = parseFloat(document.getElementById('targetFcr').value);
 
-        if (numBirds <= 0 || targetWeight <= 0) {
-            alert('Please enter valid positive values for Number of Birds and Target Weight.');
+        if (numBirds <= 0) {
+            alert('Please enter a valid positive number for birds.');
             return;
         }
 
-        let closestDayEntry = ALL_DAYS.reduce((prev, curr) => {
-            return (Math.abs(curr.bodyWeightG - targetWeight) < Math.abs(prev.bodyWeightG - targetWeight)) ? curr : prev;
-        });
+        let targetDay;
+        if (!isNaN(targetDaysInput) && targetDaysInput >= 1 && targetDaysInput <= 42) {
+            targetDay = targetDaysInput;
+        } else if (!isNaN(targetWeightInput) && targetWeightInput > 0) {
+            let closest = ALL_DAYS.reduce((prev, curr) => {
+                return (Math.abs(curr.bodyWeightG - targetWeightInput) < Math.abs(prev.bodyWeightG - targetWeightInput)) ? curr : prev;
+            });
+            targetDay = closest.day;
+        } else {
+            alert('Please specify either Target Days or Target Body Weight.');
+            return;
+        }
 
-        const targetDay = closestDayEntry.day;
-        const tableFcr = closestDayEntry.fcr;
+        const dayEntry = ALL_DAYS.find(d => d.day === targetDay) || ALL_DAYS[ALL_DAYS.length - 1];
+        
+        // Use table FCR if available, fallback to day 7 FCR for early days 1-6
+        const tableFcr = dayEntry.fcr || 0.86;
 
         const appliedFcr = (!isNaN(userFcrInput) && userFcrInput > 0) ? userFcrInput : tableFcr;
         const fcrScaleFactor = appliedFcr / tableFcr;
 
         let preStarterG = 0, starterG = 0, finisherG = 0;
 
-        ALL_DAYS.filter(d => d.day <= targetDay).forEach(d => {
+        ALL_DAYS.filter(d => d.day >= 1 && d.day <= targetDay).forEach(d => {
             const feedForDay = d.rationG * numBirds * fcrScaleFactor;
             if (d.day <= 7) preStarterG += feedForDay;
             else if (d.day <= 21) starterG += feedForDay;
@@ -417,9 +456,9 @@
         const totalFeedKg = preStarterKg + starterKg + finisherKg;
 
         // Stage 25kg bags calculation
-        const preStarterBags = Math.ceil(preStarterKg / 25);
-        const starterBags = Math.ceil(starterKg / 25);
-        const finisherBags = Math.ceil(finisherKg / 25);
+        const preStarterBags = preStarterKg > 0 ? Math.ceil(preStarterKg / 25) : 0;
+        const starterBags = starterKg > 0 ? Math.ceil(starterKg / 25) : 0;
+        const finisherBags = finisherKg > 0 ? Math.ceil(finisherKg / 25) : 0;
 
         const totalBags25kg = preStarterBags + starterBags + finisherBags;
 
@@ -433,7 +472,7 @@
         // Save state
         currentSummary = {
             numBirds,
-            targetWeight,
+            targetWeight: dayEntry.bodyWeightG,
             targetDay,
             totalFeedKg: totalFeedKg.toFixed(1),
             totalBags25kg,
@@ -481,6 +520,7 @@
 ---------------------------
 - Birds: ${currentSummary.numBirds.toLocaleString()}
 - Target Day: Day ${currentSummary.targetDay}
+- Expected Weight: ${currentSummary.targetWeight}g
 - Total Feed: ${currentSummary.totalFeedKg} KG (${currentSummary.totalBags25kg} x 25kg bags)
 - Applied FCR: ${currentSummary.appliedFcr}
 ---------------------------
