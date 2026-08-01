@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -84,9 +84,16 @@
 
         .btn-group {
             display: flex;
+            flex-direction: column;
             gap: 10px;
             margin-top: 20px;
             margin-bottom: 24px;
+        }
+
+        @media (min-width: 480px) {
+            .btn-group {
+                flex-direction: row;
+            }
         }
 
         button {
@@ -97,7 +104,7 @@
             font-size: 0.95rem;
             font-weight: bold;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
         }
 
         button:hover {
@@ -118,11 +125,19 @@
             gap: 8px;
         }
 
+        /* Hidden initial state for Summary Card */
         .summary-card {
+            display: none; 
             background: #f9fbf9;
             border: 1px solid #d4edda;
             border-radius: 8px;
             padding: 18px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .summary-card h2 {
@@ -215,13 +230,11 @@
     </div>
 
     <div class="btn-group">
-        <button class="btn-calc" onclick="calculateSummary()">Generate Summary</button>
-        <button class="btn-whatsapp" onclick="shareWhatsApp()">
-            Share via WhatsApp
-        </button>
+        <button class="btn-calc" id="btnGenerate">Generate Detailed Summary</button>
+        <button class="btn-whatsapp" id="btnWhatsApp">Share Summary via WhatsApp</button>
     </div>
 
-    <div class="summary-card">
+    <div class="summary-card" id="summaryCard">
         <h2>Cycle Summary</h2>
         <div class="metric-grid">
             <div class="metric">
@@ -250,14 +263,14 @@
             <li><span>Finisher (Days 22+):</span> <strong id="resFinisher">-</strong></li>
         </ul>
 
-        <div class="note" id="fcrNote">
-            * Note: Values automatically recalculate in real-time. Dynamic adjustment scales feed proportionally if Target FCR differs from standard table FCR.
+        <div class="note">
+            * Dynamic adjustment scales total feed proportionally if Target FCR differs from standard table FCR.
         </div>
     </div>
 </div>
 
 <script>
-    // Digitized Base Data
+    // Base Digitized Table
     const BASE_FEED_DATA = {
         PreStarter: [
             { day: 0, rationG: 0, bodyWeightG: 42, fcr: null },
@@ -310,10 +323,9 @@
         const fullData = JSON.parse(JSON.stringify(BASE_FEED_DATA));
         const finisher = fullData.Finisher;
         
-        // Linear increments calculated from days 30-35
-        const dailyRationIncrement = 5; // ~5g increase/day
-        const dailyWeightIncrement = 93; // ~93g increase/day
-        const dailyFcrIncrement = 0.02;  // ~0.02 FCR increase/day
+        const dailyRationIncrement = 5;
+        const dailyWeightIncrement = 93;
+        const dailyFcrIncrement = 0.02;
 
         let lastEntry = finisher[finisher.length - 1];
 
@@ -336,7 +348,6 @@
 
     const COMPLETE_DATA = buildCompleteDataset();
 
-    // Flatten data into single array for easier lookup
     const ALL_DAYS = [
         ...COMPLETE_DATA.PreStarter,
         ...COMPLETE_DATA.Starter,
@@ -344,7 +355,7 @@
         ...COMPLETE_DATA.Finisher
     ];
 
-    let currentSummary = null; // Store for WhatsApp sharing
+    let currentSummary = null;
 
     function calculateSummary() {
         const numBirds = parseInt(document.getElementById('numBirds').value) || 0;
@@ -352,6 +363,7 @@
         const userFcrInput = parseFloat(document.getElementById('targetFcr').value);
 
         if (numBirds <= 0 || targetWeight <= 0) {
+            alert('Please enter valid positive values for Number of Birds and Target Weight.');
             return;
         }
 
@@ -386,7 +398,7 @@
         const totalFeedKg = preStarterKg + starterKg + growerKg + finisherKg;
         const bagsNeeded = Math.ceil(totalFeedKg / 50);
 
-        // Save active state
+        // Save state
         currentSummary = {
             numBirds,
             targetWeight,
@@ -400,7 +412,7 @@
             finisherKg: finisherKg.toFixed(1)
         };
 
-        // Render UI
+        // Render UI Data
         document.getElementById('resDays').innerText = `${targetDay} Days`;
         document.getElementById('resTotalFeed').innerText = `${totalFeedKg.toFixed(1)} KG`;
         document.getElementById('resBags').innerText = `${bagsNeeded} Bags`;
@@ -410,43 +422,41 @@
         document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG`;
         document.getElementById('resGrower').innerText = `${growerKg.toFixed(1)} KG`;
         document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG`;
+
+        // Make card visible & scroll down smoothly to show summary
+        const summaryCard = document.getElementById('summaryCard');
+        summaryCard.style.display = 'block';
+        summaryCard.scrollIntoView({ behavior: 'smooth' });
     }
 
     function shareWhatsApp() {
         if (!currentSummary) {
             calculateSummary();
+            if (!currentSummary) return; // Exit if validation fails
         }
 
-        const text = `*Trouw Nutrition Broiler Production Plan*
------------------------------------
-• *Birds:* ${currentSummary.numBirds.toLocaleString()}
-• *Target Weight:* ${currentSummary.targetWeight} g
-• *Estimated Days:* ${currentSummary.targetDay} Days
-• *Applied FCR:* ${currentSummary.appliedFcr}
------------------------------------
-*FEED SUMMARY*
-• *Total Feed:* ${currentSummary.totalFeedKg} KG
-• *50kg Bags Needed:* ${currentSummary.bagsNeeded} Bags
-
-*FEED STAGE BREAKDOWN*
-- Pre-Starter: ${currentSummary.preStarterKg} KG
-- Starter: ${currentSummary.starterKg} KG
-- Grower: ${currentSummary.growerKg} KG
-- Finisher: ${currentSummary.finisherKg} KG`;
+        const text = `*Trouw Nutrition Broiler Plan*
+---------------------------
+- Birds: ${currentSummary.numBirds.toLocaleString()}
+- Final Cycle Day: Day ${currentSummary.targetDay}
+- Total Feed Needed: ${currentSummary.totalFeedKg} KG
+- Approx. Bags (50kg): ${currentSummary.bagsNeeded}
+- FCR: ${currentSummary.appliedFcr}
+---------------------------
+FEED BREAKDOWN (KG):
+- PreStarter: ${currentSummary.preStarterKg}
+- Starter: ${currentSummary.starterKg}
+- Grower: ${currentSummary.growerKg}
+- Finisher: ${currentSummary.finisherKg}`;
 
         const encodedText = encodeURIComponent(text);
-        window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+        window.location.href = `whatsapp://send?text=${encodedText}`;
     }
 
-    // Real-time calculation listeners
-    document.getElementById('numBirds').addEventListener('input', calculateSummary);
-    document.getElementById('targetWeight').addEventListener('input', calculateSummary);
-    document.getElementById('targetFcr').addEventListener('input', calculateSummary);
-
-    // Initial Run on load
-    calculateSummary();
+    // Explicit Event Listeners for Buttons
+    document.getElementById('btnGenerate').addEventListener('click', calculateSummary);
+    document.getElementById('btnWhatsApp').addEventListener('click', shareWhatsApp);
 </script>
 
 </body>
 </html>
-
