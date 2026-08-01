@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Broiler Production & Feed Planner</title>
+    <title>Hendrix Broiler Feed & Production Planner</title>
     <style>
         :root {
             --primary: #2e7d32;
@@ -174,10 +174,34 @@
             margin-top: 2px;
         }
 
+        .total-cost-card {
+            background: #e8f5e9;
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .total-cost-card .title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+            text-transform: uppercase;
+        }
+
+        .total-cost-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-dark);
+            margin-top: 4px;
+        }
+
         .breakdown-title {
             font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 8px;
+            margin-top: 12px;
         }
 
         .breakdown-list {
@@ -209,8 +233,8 @@
 
 <div class="container">
     <header>
-        <h1>Broiler Feed & Production Planner</h1>
-        <p>Based on Trouw Nutrition Pellet Feeding Program (6-Week Cycle)</p>
+        <h1>Hendrix Broiler Feed & Production Planner</h1>
+        <p>Based on Hendrix Broiler Feeding Program (6-Week Cycle)</p>
     </header>
 
     <div class="form-group">
@@ -235,6 +259,12 @@
 
     <div class="summary-card" id="summaryCard">
         <h2>Cycle Summary</h2>
+        
+        <div class="total-cost-card">
+            <div class="title">Total Feed Value (Cost)</div>
+            <div class="value" id="resTotalCost">₦0</div>
+        </div>
+
         <div class="metric-grid">
             <div class="metric">
                 <div class="metric-title">Production Days</div>
@@ -245,7 +275,7 @@
                 <div class="metric-value" id="resTotalFeed">-</div>
             </div>
             <div class="metric">
-                <div class="metric-title">25kg Bags Needed</div>
+                <div class="metric-title">Total 25kg Bags</div>
                 <div class="metric-value" id="resBags">-</div>
             </div>
             <div class="metric">
@@ -254,21 +284,34 @@
             </div>
         </div>
 
-        <div class="breakdown-title">Feed Stage Breakdown (KG & 25kg Bags)</div>
+        <div class="breakdown-title">Feed Stage Quantities</div>
         <ul class="breakdown-list">
             <li><span>Pre-Starter (Days 0-7):</span> <strong id="resPreStarter">-</strong></li>
-            <li><span>Starter (Days 8-14):</span> <strong id="resStarter">-</strong></li>
-            <li><span>Grower (Days 15-21):</span> <strong id="resGrower">-</strong></li>
+            <li><span>Starter (Days 8-21):</span> <strong id="resStarter">-</strong></li>
             <li><span>Finisher (Days 22+):</span> <strong id="resFinisher">-</strong></li>
         </ul>
 
+        <div class="breakdown-title">Cost Breakdown (25kg Bags @ Price)</div>
+        <ul class="breakdown-list">
+            <li><span>Pre-Starter (@ ₦21,700/bag):</span> <strong id="costPreStarter">₦0</strong></li>
+            <li><span>Starter (@ ₦20,450/bag):</span> <strong id="costStarter">₦0</strong></li>
+            <li><span>Finisher (@ ₦19,950/bag):</span> <strong id="costFinisher">₦0</strong></li>
+        </ul>
+
         <div class="note">
-            * Dynamic adjustment scales total feed proportionally if Target FCR differs from standard table FCR. Bag counts are rounded up to the nearest whole 25kg bag.
+            * Dynamic adjustment scales feed proportionally if Target FCR differs from standard table FCR. Bag counts are rounded up to the nearest whole 25kg bag per stage.
         </div>
     </div>
 </div>
 
 <script>
+    // Price Constants per 25kg bag
+    const PRICES = {
+        PreStarter: 21700,
+        Starter: 20450,
+        Finisher: 19950
+    };
+
     // Base Digitized Table
     const BASE_FEED_DATA = {
         PreStarter: [
@@ -288,9 +331,7 @@
             { day: 11, rationG: 53, bodyWeightG: 336, fcr: 1.03 },
             { day: 12, rationG: 58, bodyWeightG: 381, fcr: 1.06 },
             { day: 13, rationG: 63, bodyWeightG: 429, fcr: 1.09 },
-            { day: 14, rationG: 69, bodyWeightG: 480, fcr: 1.12 }
-        ],
-        Grower: [
+            { day: 14, rationG: 69, bodyWeightG: 480, fcr: 1.12 },
             { day: 15, rationG: 74, bodyWeightG: 535, fcr: 1.14 },
             { day: 16, rationG: 80, bodyWeightG: 593, fcr: 1.164 },
             { day: 17, rationG: 86, bodyWeightG: 655, fcr: 1.185 },
@@ -317,7 +358,6 @@
         ]
     };
 
-    // Extrapolate Finisher dataset up to Day 42 (6 Weeks)
     function buildCompleteDataset() {
         const fullData = JSON.parse(JSON.stringify(BASE_FEED_DATA));
         const finisher = fullData.Finisher;
@@ -350,11 +390,14 @@
     const ALL_DAYS = [
         ...COMPLETE_DATA.PreStarter,
         ...COMPLETE_DATA.Starter,
-        ...COMPLETE_DATA.Grower,
         ...COMPLETE_DATA.Finisher
     ];
 
     let currentSummary = null;
+
+    function formatCurrency(amount) {
+        return '₦' + amount.toLocaleString('en-NG');
+    }
 
     function calculateSummary() {
         const numBirds = parseInt(document.getElementById('numBirds').value) || 0;
@@ -366,7 +409,6 @@
             return;
         }
 
-        // Find entry closest to target weight
         let closestDayEntry = ALL_DAYS.reduce((prev, curr) => {
             return (Math.abs(curr.bodyWeightG - targetWeight) < Math.abs(prev.bodyWeightG - targetWeight)) ? curr : prev;
         });
@@ -374,34 +416,37 @@
         const targetDay = closestDayEntry.day;
         const tableFcr = closestDayEntry.fcr;
 
-        // FCR Ratio adjustment
         const appliedFcr = (!isNaN(userFcrInput) && userFcrInput > 0) ? userFcrInput : tableFcr;
         const fcrScaleFactor = appliedFcr / tableFcr;
 
-        // Calculate stage breakdowns
-        let preStarterG = 0, starterG = 0, growerG = 0, finisherG = 0;
+        let preStarterG = 0, starterG = 0, finisherG = 0;
 
         ALL_DAYS.filter(d => d.day <= targetDay).forEach(d => {
             const feedForDay = d.rationG * numBirds * fcrScaleFactor;
             if (d.day <= 7) preStarterG += feedForDay;
-            else if (d.day <= 14) starterG += feedForDay;
-            else if (d.day <= 21) growerG += feedForDay;
+            else if (d.day <= 21) starterG += feedForDay;
             else finisherG += feedForDay;
         });
 
         const preStarterKg = preStarterG / 1000;
         const starterKg = starterG / 1000;
-        const growerKg = growerG / 1000;
         const finisherKg = finisherG / 1000;
 
-        const totalFeedKg = preStarterKg + starterKg + growerKg + finisherKg;
-        const totalBags25kg = Math.ceil(totalFeedKg / 25);
+        const totalFeedKg = preStarterKg + starterKg + finisherKg;
 
-        // Stage bags calculation (25kg bags)
+        // Stage 25kg bags calculation
         const preStarterBags = Math.ceil(preStarterKg / 25);
         const starterBags = Math.ceil(starterKg / 25);
-        const growerBags = Math.ceil(growerKg / 25);
         const finisherBags = Math.ceil(finisherKg / 25);
+
+        const totalBags25kg = preStarterBags + starterBags + finisherBags;
+
+        // Costs calculation
+        const costPreStarter = preStarterBags * PRICES.PreStarter;
+        const costStarter = starterBags * PRICES.Starter;
+        const costFinisher = finisherBags * PRICES.Finisher;
+
+        const totalCost = costPreStarter + costStarter + costFinisher;
 
         // Save state
         currentSummary = {
@@ -415,13 +460,16 @@
             preStarterBags,
             starterKg: starterKg.toFixed(1),
             starterBags,
-            growerKg: growerKg.toFixed(1),
-            growerBags,
             finisherKg: finisherKg.toFixed(1),
-            finisherBags
+            finisherBags,
+            costPreStarter,
+            costStarter,
+            costFinisher,
+            totalCost
         };
 
         // Render UI Data
+        document.getElementById('resTotalCost').innerText = formatCurrency(totalCost);
         document.getElementById('resDays').innerText = `${targetDay} Days`;
         document.getElementById('resTotalFeed').innerText = `${totalFeedKg.toFixed(1)} KG`;
         document.getElementById('resBags').innerText = `${totalBags25kg} Bags`;
@@ -429,10 +477,13 @@
 
         document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG (${preStarterBags} bags)`;
         document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG (${starterBags} bags)`;
-        document.getElementById('resGrower').innerText = `${growerKg.toFixed(1)} KG (${growerBags} bags)`;
         document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG (${finisherBags} bags)`;
 
-        // Make card visible & scroll down smoothly to show summary
+        document.getElementById('costPreStarter').innerText = formatCurrency(costPreStarter);
+        document.getElementById('costStarter').innerText = formatCurrency(costStarter);
+        document.getElementById('costFinisher').innerText = formatCurrency(costFinisher);
+
+        // Show summary card and scroll
         const summaryCard = document.getElementById('summaryCard');
         summaryCard.style.display = 'block';
         summaryCard.scrollIntoView({ behavior: 'smooth' });
@@ -444,25 +495,29 @@
             if (!currentSummary) return; 
         }
 
-        const text = `*Trouw Nutrition Broiler Plan*
+        const text = `*Hendrix Broiler Plan*
 ---------------------------
 - Birds: ${currentSummary.numBirds.toLocaleString()}
-- Final Cycle Day: Day ${currentSummary.targetDay}
-- Total Feed Needed: ${currentSummary.totalFeedKg} KG
-- Approx. Bags (25kg): ${currentSummary.totalBags25kg}
-- FCR: ${currentSummary.appliedFcr}
+- Target Day: Day ${currentSummary.targetDay}
+- Total Feed: ${currentSummary.totalFeedKg} KG (${currentSummary.totalBags25kg} x 25kg bags)
+- Applied FCR: ${currentSummary.appliedFcr}
 ---------------------------
-FEED BREAKDOWN (KG & 25kg Bags):
+*TOTAL FEED VALUE: ${formatCurrency(currentSummary.totalCost)}*
+---------------------------
+FEED QUANTITIES:
 - PreStarter: ${currentSummary.preStarterKg} KG (${currentSummary.preStarterBags} bags)
-- Starter: ${currentSummary.starterKg} KG (${currentSummary.starterBags} bags)
-- Grower: ${currentSummary.growerKg} KG (${currentSummary.growerBags} bags)
-- Finisher: ${currentSummary.finisherKg} KG (${currentSummary.finisherBags} bags)`;
+- Starter (Days 8-21): ${currentSummary.starterKg} KG (${currentSummary.starterBags} bags)
+- Finisher (Days 22+): ${currentSummary.finisherKg} KG (${currentSummary.finisherBags} bags)
+---------------------------
+COST BREAKDOWN:
+- PreStarter: ${formatCurrency(currentSummary.costPreStarter)}
+- Starter: ${formatCurrency(currentSummary.costStarter)}
+- Finisher: ${formatCurrency(currentSummary.costFinisher)}`;
 
         const encodedText = encodeURIComponent(text);
         window.location.href = `whatsapp://send?text=${encodedText}`;
     }
 
-    // Explicit Event Listeners for Buttons
     document.getElementById('btnGenerate').addEventListener('click', calculateSummary);
     document.getElementById('btnWhatsApp').addEventListener('click', shareWhatsApp);
 </script>
