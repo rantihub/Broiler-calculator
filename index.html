@@ -104,7 +104,7 @@
             font-size: 0.95rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s, opacity 0.2s;
+            transition: opacity 0.2s;
         }
 
         button:hover {
@@ -125,7 +125,6 @@
             gap: 8px;
         }
 
-        /* Hidden initial state for Summary Card */
         .summary-card {
             display: none; 
             background: #f9fbf9;
@@ -246,7 +245,7 @@
                 <div class="metric-value" id="resTotalFeed">-</div>
             </div>
             <div class="metric">
-                <div class="metric-title">50kg Bags Needed</div>
+                <div class="metric-title">25kg Bags Needed</div>
                 <div class="metric-value" id="resBags">-</div>
             </div>
             <div class="metric">
@@ -255,7 +254,7 @@
             </div>
         </div>
 
-        <div class="breakdown-title">Feed Stage Breakdown (KG)</div>
+        <div class="breakdown-title">Feed Stage Breakdown (KG & 25kg Bags)</div>
         <ul class="breakdown-list">
             <li><span>Pre-Starter (Days 0-7):</span> <strong id="resPreStarter">-</strong></li>
             <li><span>Starter (Days 8-14):</span> <strong id="resStarter">-</strong></li>
@@ -264,7 +263,7 @@
         </ul>
 
         <div class="note">
-            * Dynamic adjustment scales total feed proportionally if Target FCR differs from standard table FCR.
+            * Dynamic adjustment scales total feed proportionally if Target FCR differs from standard table FCR. Bag counts are rounded up to the nearest whole 25kg bag.
         </div>
     </div>
 </div>
@@ -396,7 +395,13 @@
         const finisherKg = finisherG / 1000;
 
         const totalFeedKg = preStarterKg + starterKg + growerKg + finisherKg;
-        const bagsNeeded = Math.ceil(totalFeedKg / 50);
+        const totalBags25kg = Math.ceil(totalFeedKg / 25);
+
+        // Stage bags calculation (25kg bags)
+        const preStarterBags = Math.ceil(preStarterKg / 25);
+        const starterBags = Math.ceil(starterKg / 25);
+        const growerBags = Math.ceil(growerKg / 25);
+        const finisherBags = Math.ceil(finisherKg / 25);
 
         // Save state
         currentSummary = {
@@ -404,24 +409,28 @@
             targetWeight,
             targetDay,
             totalFeedKg: totalFeedKg.toFixed(1),
-            bagsNeeded,
+            totalBags25kg,
             appliedFcr: appliedFcr.toFixed(2),
             preStarterKg: preStarterKg.toFixed(1),
+            preStarterBags,
             starterKg: starterKg.toFixed(1),
+            starterBags,
             growerKg: growerKg.toFixed(1),
-            finisherKg: finisherKg.toFixed(1)
+            growerBags,
+            finisherKg: finisherKg.toFixed(1),
+            finisherBags
         };
 
         // Render UI Data
         document.getElementById('resDays').innerText = `${targetDay} Days`;
         document.getElementById('resTotalFeed').innerText = `${totalFeedKg.toFixed(1)} KG`;
-        document.getElementById('resBags').innerText = `${bagsNeeded} Bags`;
+        document.getElementById('resBags').innerText = `${totalBags25kg} Bags`;
         document.getElementById('resFcr').innerText = appliedFcr.toFixed(2);
 
-        document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG`;
-        document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG`;
-        document.getElementById('resGrower').innerText = `${growerKg.toFixed(1)} KG`;
-        document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG`;
+        document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG (${preStarterBags} bags)`;
+        document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG (${starterBags} bags)`;
+        document.getElementById('resGrower').innerText = `${growerKg.toFixed(1)} KG (${growerBags} bags)`;
+        document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG (${finisherBags} bags)`;
 
         // Make card visible & scroll down smoothly to show summary
         const summaryCard = document.getElementById('summaryCard');
@@ -432,7 +441,7 @@
     function shareWhatsApp() {
         if (!currentSummary) {
             calculateSummary();
-            if (!currentSummary) return; // Exit if validation fails
+            if (!currentSummary) return; 
         }
 
         const text = `*Trouw Nutrition Broiler Plan*
@@ -440,14 +449,14 @@
 - Birds: ${currentSummary.numBirds.toLocaleString()}
 - Final Cycle Day: Day ${currentSummary.targetDay}
 - Total Feed Needed: ${currentSummary.totalFeedKg} KG
-- Approx. Bags (50kg): ${currentSummary.bagsNeeded}
+- Approx. Bags (25kg): ${currentSummary.totalBags25kg}
 - FCR: ${currentSummary.appliedFcr}
 ---------------------------
-FEED BREAKDOWN (KG):
-- PreStarter: ${currentSummary.preStarterKg}
-- Starter: ${currentSummary.starterKg}
-- Grower: ${currentSummary.growerKg}
-- Finisher: ${currentSummary.finisherKg}`;
+FEED BREAKDOWN (KG & 25kg Bags):
+- PreStarter: ${currentSummary.preStarterKg} KG (${currentSummary.preStarterBags} bags)
+- Starter: ${currentSummary.starterKg} KG (${currentSummary.starterBags} bags)
+- Grower: ${currentSummary.growerKg} KG (${currentSummary.growerBags} bags)
+- Finisher: ${currentSummary.finisherKg} KG (${currentSummary.finisherBags} bags)`;
 
         const encodedText = encodeURIComponent(text);
         window.location.href = `whatsapp://send?text=${encodedText}`;
