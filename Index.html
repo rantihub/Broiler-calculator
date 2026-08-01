@@ -1,0 +1,452 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broiler Production & Feed Planner</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --bg: #f4f6f8;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --accent: #25D366;
+            --border: #e0e0e0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 650px;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 12px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-calc {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-whatsapp {
+            background-color: var(--accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .summary-card {
+            background: #f9fbf9;
+            border: 1px solid #d4edda;
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .summary-card h2 {
+            font-size: 1.1rem;
+            color: var(--primary-dark);
+            margin-bottom: 12px;
+            border-bottom: 1px dashed #c3e6cb;
+            padding-bottom: 6px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .metric-title {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-top: 2px;
+        }
+
+        .breakdown-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .breakdown-list {
+            list-style: none;
+        }
+
+        .breakdown-list li {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.88rem;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .breakdown-list li:last-child {
+            border-bottom: none;
+        }
+
+        .note {
+            font-size: 0.75rem;
+            color: #777;
+            margin-top: 12px;
+            font-style: italic;
+            line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Broiler Feed & Production Planner</h1>
+        <p>Based on Trouw Nutrition Pellet Feeding Program (6-Week Cycle)</p>
+    </header>
+
+    <div class="form-group">
+        <label for="numBirds">Number of Birds</label>
+        <input type="number" id="numBirds" value="500" min="1" step="1">
+    </div>
+
+    <div class="form-group">
+        <label for="targetWeight">Target Body Weight (grams)</label>
+        <input type="number" id="targetWeight" value="2144" min="100" step="10">
+    </div>
+
+    <div class="form-group">
+        <label for="targetFcr">Target FCR (Optional Adjustment)</label>
+        <input type="number" id="targetFcr" value="1.55" min="0.5" max="3.0" step="0.01">
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-calc" onclick="calculateSummary()">Generate Summary</button>
+        <button class="btn-whatsapp" onclick="shareWhatsApp()">
+            Share via WhatsApp
+        </button>
+    </div>
+
+    <div class="summary-card">
+        <h2>Cycle Summary</h2>
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-title">Production Days</div>
+                <div class="metric-value" id="resDays">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">Total Feed Required</div>
+                <div class="metric-value" id="resTotalFeed">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">50kg Bags Needed</div>
+                <div class="metric-value" id="resBags">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">Applied FCR</div>
+                <div class="metric-value" id="resFcr">-</div>
+            </div>
+        </div>
+
+        <div class="breakdown-title">Feed Stage Breakdown (KG)</div>
+        <ul class="breakdown-list">
+            <li><span>Pre-Starter (Days 0-7):</span> <strong id="resPreStarter">-</strong></li>
+            <li><span>Starter (Days 8-14):</span> <strong id="resStarter">-</strong></li>
+            <li><span>Grower (Days 15-21):</span> <strong id="resGrower">-</strong></li>
+            <li><span>Finisher (Days 22+):</span> <strong id="resFinisher">-</strong></li>
+        </ul>
+
+        <div class="note" id="fcrNote">
+            * Note: Values automatically recalculate in real-time. Dynamic adjustment scales feed proportionally if Target FCR differs from standard table FCR.
+        </div>
+    </div>
+</div>
+
+<script>
+    // Digitized Base Data
+    const BASE_FEED_DATA = {
+        PreStarter: [
+            { day: 0, rationG: 0, bodyWeightG: 42, fcr: null },
+            { day: 1, rationG: 13, bodyWeightG: 57, fcr: null },
+            { day: 2, rationG: 17, bodyWeightG: 73, fcr: null },
+            { day: 3, rationG: 20, bodyWeightG: 91, fcr: null },
+            { day: 4, rationG: 23, bodyWeightG: 111, fcr: null },
+            { day: 5, rationG: 27, bodyWeightG: 134, fcr: null },
+            { day: 6, rationG: 31, bodyWeightG: 160, fcr: null },
+            { day: 7, rationG: 35, bodyWeightG: 189, fcr: 0.86 }
+        ],
+        Starter: [
+            { day: 8, rationG: 39, bodyWeightG: 220, fcr: 0.92 },
+            { day: 9, rationG: 43, bodyWeightG: 256, fcr: 0.957 },
+            { day: 10, rationG: 48, bodyWeightG: 294, fcr: 1.00 },
+            { day: 11, rationG: 53, bodyWeightG: 336, fcr: 1.03 },
+            { day: 12, rationG: 58, bodyWeightG: 381, fcr: 1.06 },
+            { day: 13, rationG: 63, bodyWeightG: 429, fcr: 1.09 },
+            { day: 14, rationG: 69, bodyWeightG: 480, fcr: 1.12 }
+        ],
+        Grower: [
+            { day: 15, rationG: 74, bodyWeightG: 535, fcr: 1.14 },
+            { day: 16, rationG: 80, bodyWeightG: 593, fcr: 1.164 },
+            { day: 17, rationG: 86, bodyWeightG: 655, fcr: 1.185 },
+            { day: 18, rationG: 92, bodyWeightG: 719, fcr: 1.207 },
+            { day: 19, rationG: 98, bodyWeightG: 786, fcr: 1.229 },
+            { day: 20, rationG: 104, bodyWeightG: 856, fcr: 1.25 },
+            { day: 21, rationG: 110, bodyWeightG: 929, fcr: 1.27 }
+        ],
+        Finisher: [
+            { day: 22, rationG: 116, bodyWeightG: 1004, fcr: 1.29 },
+            { day: 23, rationG: 122, bodyWeightG: 1082, fcr: 1.31 },
+            { day: 24, rationG: 128, bodyWeightG: 1162, fcr: 1.33 },
+            { day: 25, rationG: 134, bodyWeightG: 1244, fcr: 1.35 },
+            { day: 26, rationG: 140, bodyWeightG: 1328, fcr: 1.37 },
+            { day: 27, rationG: 145, bodyWeightG: 1414, fcr: 1.39 },
+            { day: 28, rationG: 151, bodyWeightG: 1501, fcr: 1.41 },
+            { day: 29, rationG: 157, bodyWeightG: 1590, fcr: 1.43 },
+            { day: 30, rationG: 162, bodyWeightG: 1680, fcr: 1.45 },
+            { day: 31, rationG: 167, bodyWeightG: 1771, fcr: 1.47 },
+            { day: 32, rationG: 172, bodyWeightG: 1863, fcr: 1.49 },
+            { day: 33, rationG: 177, bodyWeightG: 1956, fcr: 1.51 },
+            { day: 34, rationG: 182, bodyWeightG: 2050, fcr: 1.53 },
+            { day: 35, rationG: 186, bodyWeightG: 2144, fcr: 1.55 }
+        ]
+    };
+
+    // Extrapolate Finisher dataset up to Day 42 (6 Weeks)
+    function buildCompleteDataset() {
+        const fullData = JSON.parse(JSON.stringify(BASE_FEED_DATA));
+        const finisher = fullData.Finisher;
+        
+        // Linear increments calculated from days 30-35
+        const dailyRationIncrement = 5; // ~5g increase/day
+        const dailyWeightIncrement = 93; // ~93g increase/day
+        const dailyFcrIncrement = 0.02;  // ~0.02 FCR increase/day
+
+        let lastEntry = finisher[finisher.length - 1];
+
+        for (let day = 36; day <= 42; day++) {
+            const newRation = lastEntry.rationG + dailyRationIncrement;
+            const newWeight = lastEntry.bodyWeightG + dailyWeightIncrement;
+            const newFcr = parseFloat((lastEntry.fcr + dailyFcrIncrement).toFixed(2));
+            
+            const newEntry = {
+                day: day,
+                rationG: newRation,
+                bodyWeightG: newWeight,
+                fcr: newFcr
+            };
+            finisher.push(newEntry);
+            lastEntry = newEntry;
+        }
+        return fullData;
+    }
+
+    const COMPLETE_DATA = buildCompleteDataset();
+
+    // Flatten data into single array for easier lookup
+    const ALL_DAYS = [
+        ...COMPLETE_DATA.PreStarter,
+        ...COMPLETE_DATA.Starter,
+        ...COMPLETE_DATA.Grower,
+        ...COMPLETE_DATA.Finisher
+    ];
+
+    let currentSummary = null; // Store for WhatsApp sharing
+
+    function calculateSummary() {
+        const numBirds = parseInt(document.getElementById('numBirds').value) || 0;
+        const targetWeight = parseInt(document.getElementById('targetWeight').value) || 0;
+        const userFcrInput = parseFloat(document.getElementById('targetFcr').value);
+
+        if (numBirds <= 0 || targetWeight <= 0) {
+            return;
+        }
+
+        // Find entry closest to target weight
+        let closestDayEntry = ALL_DAYS.reduce((prev, curr) => {
+            return (Math.abs(curr.bodyWeightG - targetWeight) < Math.abs(prev.bodyWeightG - targetWeight)) ? curr : prev;
+        });
+
+        const targetDay = closestDayEntry.day;
+        const tableFcr = closestDayEntry.fcr;
+
+        // FCR Ratio adjustment
+        const appliedFcr = (!isNaN(userFcrInput) && userFcrInput > 0) ? userFcrInput : tableFcr;
+        const fcrScaleFactor = appliedFcr / tableFcr;
+
+        // Calculate stage breakdowns
+        let preStarterG = 0, starterG = 0, growerG = 0, finisherG = 0;
+
+        ALL_DAYS.filter(d => d.day <= targetDay).forEach(d => {
+            const feedForDay = d.rationG * numBirds * fcrScaleFactor;
+            if (d.day <= 7) preStarterG += feedForDay;
+            else if (d.day <= 14) starterG += feedForDay;
+            else if (d.day <= 21) growerG += feedForDay;
+            else finisherG += feedForDay;
+        });
+
+        const preStarterKg = preStarterG / 1000;
+        const starterKg = starterG / 1000;
+        const growerKg = growerG / 1000;
+        const finisherKg = finisherG / 1000;
+
+        const totalFeedKg = preStarterKg + starterKg + growerKg + finisherKg;
+        const bagsNeeded = Math.ceil(totalFeedKg / 50);
+
+        // Save active state
+        currentSummary = {
+            numBirds,
+            targetWeight,
+            targetDay,
+            totalFeedKg: totalFeedKg.toFixed(1),
+            bagsNeeded,
+            appliedFcr: appliedFcr.toFixed(2),
+            preStarterKg: preStarterKg.toFixed(1),
+            starterKg: starterKg.toFixed(1),
+            growerKg: growerKg.toFixed(1),
+            finisherKg: finisherKg.toFixed(1)
+        };
+
+        // Render UI
+        document.getElementById('resDays').innerText = `${targetDay} Days`;
+        document.getElementById('resTotalFeed').innerText = `${totalFeedKg.toFixed(1)} KG`;
+        document.getElementById('resBags').innerText = `${bagsNeeded} Bags`;
+        document.getElementById('resFcr').innerText = appliedFcr.toFixed(2);
+
+        document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG`;
+        document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG`;
+        document.getElementById('resGrower').innerText = `${growerKg.toFixed(1)} KG`;
+        document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG`;
+    }
+
+    function shareWhatsApp() {
+        if (!currentSummary) {
+            calculateSummary();
+        }
+
+        const text = `*Trouw Nutrition Broiler Production Plan*
+-----------------------------------
+• *Birds:* ${currentSummary.numBirds.toLocaleString()}
+• *Target Weight:* ${currentSummary.targetWeight} g
+• *Estimated Days:* ${currentSummary.targetDay} Days
+• *Applied FCR:* ${currentSummary.appliedFcr}
+-----------------------------------
+*FEED SUMMARY*
+• *Total Feed:* ${currentSummary.totalFeedKg} KG
+• *50kg Bags Needed:* ${currentSummary.bagsNeeded} Bags
+
+*FEED STAGE BREAKDOWN*
+- Pre-Starter: ${currentSummary.preStarterKg} KG
+- Starter: ${currentSummary.starterKg} KG
+- Grower: ${currentSummary.growerKg} KG
+- Finisher: ${currentSummary.finisherKg} KG`;
+
+        const encodedText = encodeURIComponent(text);
+        window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+    }
+
+    // Real-time calculation listeners
+    document.getElementById('numBirds').addEventListener('input', calculateSummary);
+    document.getElementById('targetWeight').addEventListener('input', calculateSummary);
+    document.getElementById('targetFcr').addEventListener('input', calculateSummary);
+
+    // Initial Run on load
+    calculateSummary();
+</script>
+
+</body>
+</html>
+
