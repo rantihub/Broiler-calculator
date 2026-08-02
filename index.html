@@ -90,14 +90,8 @@
             margin-bottom: 24px;
         }
 
-        @media (min-width: 480px) {
-            .btn-group {
-                flex-direction: row;
-            }
-        }
-
         button {
-            flex: 1;
+            width: 100%;
             padding: 12px;
             border: none;
             border-radius: 6px;
@@ -123,6 +117,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            margin-top: 16px;
         }
 
         .summary-card {
@@ -245,7 +240,6 @@
 
     <div class="btn-group">
         <button class="btn-calc" id="btnGenerate">Generate Detailed Summary</button>
-        <button class="btn-whatsapp" id="btnWhatsApp">Share Summary via WhatsApp</button>
     </div>
 
     <div class="summary-card" id="summaryCard">
@@ -275,6 +269,7 @@
             <li><span>Pre-Starter (Days 1-7):</span> <strong id="resPreStarter">-</strong></li>
             <li><span>Starter (Days 8-21):</span> <strong id="resStarter">-</strong></li>
             <li><span>Finisher (Days 22+):</span> <strong id="resFinisher">-</strong></li>
+            <li class="total-row"><span>Total Bags Required:</span> <strong id="resStageTotalBags">0 Bags</strong></li>
         </ul>
 
         <div class="breakdown-title">Cost Breakdown (25kg Bags @ Price)</div>
@@ -284,6 +279,8 @@
             <li><span>Finisher (@ ₦19,950/bag):</span> <strong id="costFinisher">₦0</strong></li>
             <li class="total-row"><span>Total Feed Value (Cost):</span> <strong id="resTotalCost">₦0</strong></li>
         </ul>
+
+        <button class="btn-whatsapp" id="btnWhatsApp">Share Summary via WhatsApp</button>
 
         <div class="note">
             * Dynamic adjustment scales feed proportionally if Target FCR differs from standard table FCR. Bag counts are rounded up to the nearest whole 25kg bag per stage.
@@ -498,6 +495,7 @@
         document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG (${preStarterBags} bags)`;
         document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG (${starterBags} bags)`;
         document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG (${finisherBags} bags)`;
+        document.getElementById('resStageTotalBags').innerText = `${totalBags25kg} Bags`;
 
         document.getElementById('costPreStarter').innerText = formatCurrency(costPreStarter);
         document.getElementById('costStarter').innerText = formatCurrency(costStarter);
@@ -528,6 +526,7 @@ FEED QUANTITIES:
 - PreStarter (Days 1-7): ${currentSummary.preStarterKg} KG (${currentSummary.preStarterBags} bags)
 - Starter (Days 8-21): ${currentSummary.starterKg} KG (${currentSummary.starterBags} bags)
 - Finisher (Days 22+): ${currentSummary.finisherKg} KG (${currentSummary.finisherBags} bags)
+- Total Bags Required: ${currentSummary.totalBags25kg} Bags
 ---------------------------
 COST BREAKDOWN:
 - PreStarter: ${formatCurrency(currentSummary.costPreStarter)}
