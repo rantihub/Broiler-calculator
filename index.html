@@ -183,8 +183,9 @@
         .breakdown-list li {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 0.88rem;
-            padding: 6px 0;
+            padding: 8px 0;
             border-bottom: 1px solid #eee;
         }
 
@@ -199,6 +200,14 @@
             margin-top: 4px;
             font-size: 1rem;
             color: var(--primary-dark);
+        }
+
+        .sub-detail {
+            display: block;
+            font-size: 0.75rem;
+            color: #666;
+            font-weight: normal;
+            margin-top: 2px;
         }
 
         .note {
@@ -272,12 +281,33 @@
             <li class="total-row"><span>Total Bags Required:</span> <strong id="resStageTotalBags">0 Bags</strong></li>
         </ul>
 
-        <div class="breakdown-title">Cost Breakdown (25kg Bags @ Price)</div>
+        <div class="breakdown-title">Cost Breakdown & Calculations</div>
         <ul class="breakdown-list">
-            <li><span>Pre-Starter (@ ₦21,700/bag):</span> <strong id="costPreStarter">₦0</strong></li>
-            <li><span>Starter (@ ₦20,450/bag):</span> <strong id="costStarter">₦0</strong></li>
-            <li><span>Finisher (@ ₦19,950/bag):</span> <strong id="costFinisher">₦0</strong></li>
-            <li class="total-row"><span>Total Feed Value (Cost):</span> <strong id="resTotalCost">₦0</strong></li>
+            <li>
+                <div>
+                    <span>Pre-Starter</span>
+                    <span class="sub-detail" id="calcPreStarter">0 bags × ₦21,700</span>
+                </div>
+                <strong id="costPreStarter">₦0</strong>
+            </li>
+            <li>
+                <div>
+                    <span>Starter</span>
+                    <span class="sub-detail" id="calcStarter">0 bags × ₦20,450</span>
+                </div>
+                <strong id="costStarter">₦0</strong>
+            </li>
+            <li>
+                <div>
+                    <span>Finisher</span>
+                    <span class="sub-detail" id="calcFinisher">0 bags × ₦19,950</span>
+                </div>
+                <strong id="costFinisher">₦0</strong>
+            </li>
+            <li class="total-row">
+                <span>Total Feed Value (Cost):</span> 
+                <strong id="resTotalCost">₦0</strong>
+            </li>
         </ul>
 
         <button class="btn-whatsapp" id="btnWhatsApp">Share Summary via WhatsApp</button>
@@ -497,6 +527,11 @@
         document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG (${finisherBags} bags)`;
         document.getElementById('resStageTotalBags').innerText = `${totalBags25kg} Bags`;
 
+        // Update Detailed Calculations in Breakdown
+        document.getElementById('calcPreStarter').innerText = `${preStarterBags} bag${preStarterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.PreStarter)}`;
+        document.getElementById('calcStarter').innerText = `${starterBags} bag${starterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Starter)}`;
+        document.getElementById('calcFinisher').innerText = `${finisherBags} bag${finisherBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Finisher)}`;
+
         document.getElementById('costPreStarter').innerText = formatCurrency(costPreStarter);
         document.getElementById('costStarter').innerText = formatCurrency(costStarter);
         document.getElementById('costFinisher').innerText = formatCurrency(costFinisher);
@@ -528,10 +563,10 @@ FEED QUANTITIES:
 - Finisher (Days 22+): ${currentSummary.finisherKg} KG (${currentSummary.finisherBags} bags)
 - Total Bags Required: ${currentSummary.totalBags25kg} Bags
 ---------------------------
-COST BREAKDOWN:
-- PreStarter: ${formatCurrency(currentSummary.costPreStarter)}
-- Starter: ${formatCurrency(currentSummary.costStarter)}
-- Finisher: ${formatCurrency(currentSummary.costFinisher)}
+COST BREAKDOWN & CALCULATIONS:
+- PreStarter: ${currentSummary.preStarterBags} bags × ${formatCurrency(PRICES.PreStarter)} = ${formatCurrency(currentSummary.costPreStarter)}
+- Starter: ${currentSummary.starterBags} bags × ${formatCurrency(PRICES.Starter)} = ${formatCurrency(currentSummary.costStarter)}
+- Finisher: ${currentSummary.finisherBags} bags × ${formatCurrency(PRICES.Finisher)} = ${formatCurrency(currentSummary.costFinisher)}
 ---------------------------
 *TOTAL FEED VALUE: ${formatCurrency(currentSummary.totalCost)}*`;
 
