@@ -19,7 +19,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         body {
@@ -28,6 +28,7 @@
             padding: 20px 10px;
             display: flex;
             justify-content: center;
+            contain: content;
         }
 
         .container {
@@ -37,6 +38,7 @@
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            will-change: transform;
         }
 
         header {
@@ -75,7 +77,7 @@
             border-radius: 6px;
             font-size: 1rem;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.15s ease-in-out;
         }
 
         input:focus {
@@ -98,7 +100,7 @@
             font-size: 0.95rem;
             font-weight: bold;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.15s ease-in-out;
         }
 
         button:hover {
@@ -126,11 +128,15 @@
             border: 1px solid #d4edda;
             border-radius: 8px;
             padding: 18px;
-            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .summary-card.active {
+            display: block;
+            animation: fadeIn 0.25s ease-out;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -167,6 +173,10 @@
             font-weight: bold;
             color: var(--primary);
             margin-top: 2px;
+        }
+
+        .metric-value.highlight {
+            color: var(--primary-dark);
         }
 
         .breakdown-title {
@@ -228,13 +238,18 @@
     </header>
 
     <div class="form-group">
+        <label for="stockingDate">Stocking Date</label>
+        <input type="date" id="stockingDate">
+    </div>
+
+    <div class="form-group">
         <label for="numBirds">Number of Birds</label>
         <input type="number" id="numBirds" value="500" min="1" step="1">
     </div>
 
     <div class="form-group">
         <label for="targetDays">Target Days (1 - 42)</label>
-        <input type="number" id="targetDays" value="35" min="1" max="42" step="1" placeholder="e.g. 4">
+        <input type="number" id="targetDays" value="35" min="1" max="42" step="1" placeholder="e.g. 35">
     </div>
 
     <div class="form-group">
@@ -255,6 +270,14 @@
         <h2>Cycle Summary</h2>
 
         <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-title">Stocking Date</div>
+                <div class="metric-value" id="resStockingDate">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">Recommended Harvest Date</div>
+                <div class="metric-value highlight" id="resHarvestDate">-</div>
+            </div>
             <div class="metric">
                 <div class="metric-title">Production Days</div>
                 <div class="metric-value" id="resDays">-</div>
@@ -319,16 +342,12 @@
 </div>
 
 <script>
-    // Price Constants per 25kg bag
-    const PRICES = {
-        PreStarter: 21700,
-        Starter: 20450,
-        Finisher: 19950
-    };
+    // Optimized Price Constants
+    const PRICES = Object.freeze({ PreStarter: 21700, Starter: 20450, Finisher: 19950 });
 
-    // Base Digitized Table
-    const BASE_FEED_DATA = {
-        PreStarter: [
+    // Pre-allocated Static Flat Array (Indexed by day for O(1) Access)
+    const DAILY_FEED_MAP = (function() {
+        const raw = [
             { day: 0, rationG: 0, bodyWeightG: 42, fcr: null },
             { day: 1, rationG: 13, bodyWeightG: 57, fcr: null },
             { day: 2, rationG: 17, bodyWeightG: 73, fcr: null },
@@ -336,9 +355,7 @@
             { day: 4, rationG: 23, bodyWeightG: 111, fcr: null },
             { day: 5, rationG: 27, bodyWeightG: 134, fcr: null },
             { day: 6, rationG: 31, bodyWeightG: 160, fcr: null },
-            { day: 7, rationG: 35, bodyWeightG: 189, fcr: 0.86 }
-        ],
-        Starter: [
+            { day: 7, rationG: 35, bodyWeightG: 189, fcr: 0.86 },
             { day: 8, rationG: 39, bodyWeightG: 220, fcr: 0.92 },
             { day: 9, rationG: 43, bodyWeightG: 256, fcr: 0.957 },
             { day: 10, rationG: 48, bodyWeightG: 294, fcr: 1.00 },
@@ -352,9 +369,7 @@
             { day: 18, rationG: 92, bodyWeightG: 719, fcr: 1.207 },
             { day: 19, rationG: 98, bodyWeightG: 786, fcr: 1.229 },
             { day: 20, rationG: 104, bodyWeightG: 856, fcr: 1.25 },
-            { day: 21, rationG: 110, bodyWeightG: 929, fcr: 1.27 }
-        ],
-        Finisher: [
+            { day: 21, rationG: 110, bodyWeightG: 929, fcr: 1.27 },
             { day: 22, rationG: 116, bodyWeightG: 1004, fcr: 1.29 },
             { day: 23, rationG: 122, bodyWeightG: 1082, fcr: 1.31 },
             { day: 24, rationG: 128, bodyWeightG: 1162, fcr: 1.33 },
@@ -369,138 +384,144 @@
             { day: 33, rationG: 177, bodyWeightG: 1956, fcr: 1.51 },
             { day: 34, rationG: 182, bodyWeightG: 2050, fcr: 1.53 },
             { day: 35, rationG: 186, bodyWeightG: 2144, fcr: 1.55 }
-        ]
+        ];
+
+        let lastRation = 186, lastWeight = 2144, lastFcr = 1.55;
+        for (let day = 36; day <= 42; day++) {
+            lastRation += 5;
+            lastWeight += 93;
+            lastFcr = parseFloat((lastFcr + 0.02).toFixed(2));
+            raw.push({ day, rationG: lastRation, bodyWeightG: lastWeight, fcr: lastFcr });
+        }
+        return Object.freeze(raw);
+    })();
+
+    // Cache DOM Elements for fast operations
+    const DOM = {
+        stockingDate: document.getElementById('stockingDate'),
+        numBirds: document.getElementById('numBirds'),
+        targetDays: document.getElementById('targetDays'),
+        targetWeight: document.getElementById('targetWeight'),
+        targetFcr: document.getElementById('targetFcr'),
+        summaryCard: document.getElementById('summaryCard'),
+        resStockingDate: document.getElementById('resStockingDate'),
+        resHarvestDate: document.getElementById('resHarvestDate'),
+        resDays: document.getElementById('resDays'),
+        resTotalFeed: document.getElementById('resTotalFeed'),
+        resBags: document.getElementById('resBags'),
+        resFcr: document.getElementById('resFcr'),
+        resPreStarter: document.getElementById('resPreStarter'),
+        resStarter: document.getElementById('resStarter'),
+        resFinisher: document.getElementById('resFinisher'),
+        resStageTotalBags: document.getElementById('resStageTotalBags'),
+        calcPreStarter: document.getElementById('calcPreStarter'),
+        calcStarter: document.getElementById('calcStarter'),
+        calcFinisher: document.getElementById('calcFinisher'),
+        costPreStarter: document.getElementById('costPreStarter'),
+        costStarter: document.getElementById('costStarter'),
+        costFinisher: document.getElementById('costFinisher'),
+        resTotalCost: document.getElementById('resTotalCost')
     };
 
-    function buildCompleteDataset() {
-        const fullData = JSON.parse(JSON.stringify(BASE_FEED_DATA));
-        const finisher = fullData.Finisher;
-        
-        const dailyRationIncrement = 5;
-        const dailyWeightIncrement = 93;
-        const dailyFcrIncrement = 0.02;
-
-        let lastEntry = finisher[finisher.length - 1];
-
-        for (let day = 36; day <= 42; day++) {
-            const newRation = lastEntry.rationG + dailyRationIncrement;
-            const newWeight = lastEntry.bodyWeightG + dailyWeightIncrement;
-            const newFcr = parseFloat((lastEntry.fcr + dailyFcrIncrement).toFixed(2));
-            
-            const newEntry = {
-                day: day,
-                rationG: newRation,
-                bodyWeightG: newWeight,
-                fcr: newFcr
-            };
-            finisher.push(newEntry);
-            lastEntry = newEntry;
-        }
-        return fullData;
-    }
-
-    const COMPLETE_DATA = buildCompleteDataset();
-
-    const ALL_DAYS = [
-        ...COMPLETE_DATA.PreStarter,
-        ...COMPLETE_DATA.Starter,
-        ...COMPLETE_DATA.Finisher
-    ];
+    // Set Default Stocking Date to Today
+    DOM.stockingDate.valueAsDate = new Date();
 
     let currentSummary = null;
 
-    // Auto-update weight when day is changed
-    document.getElementById('targetDays').addEventListener('input', function() {
-        const dayVal = parseInt(this.value);
-        if (!isNaN(dayVal) && dayVal >= 1 && dayVal <= 42) {
-            const match = ALL_DAYS.find(d => d.day === dayVal);
-            if (match) {
-                document.getElementById('targetWeight').value = match.bodyWeightG;
+    // Fast Input Syncing
+    DOM.targetDays.addEventListener('input', function() {
+        const dayVal = parseInt(this.value, 10);
+        if (dayVal >= 1 && dayVal <= 42) {
+            DOM.targetWeight.value = DAILY_FEED_MAP[dayVal].bodyWeightG;
+        }
+    });
+
+    DOM.targetWeight.addEventListener('input', function() {
+        const weightVal = parseInt(this.value, 10);
+        if (weightVal > 0) {
+            let closestDay = 1, minDiff = Infinity;
+            for (let i = 1; i <= 42; i++) {
+                const diff = Math.abs(DAILY_FEED_MAP[i].bodyWeightG - weightVal);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestDay = i;
+                }
             }
+            DOM.targetDays.value = closestDay;
         }
     });
 
-    // Auto-update day when weight is changed
-    document.getElementById('targetWeight').addEventListener('input', function() {
-        const weightVal = parseInt(this.value);
-        if (!isNaN(weightVal) && weightVal > 0) {
-            let closest = ALL_DAYS.reduce((prev, curr) => {
-                return (Math.abs(curr.bodyWeightG - weightVal) < Math.abs(prev.bodyWeightG - weightVal)) ? curr : prev;
-            });
-            document.getElementById('targetDays').value = closest.day;
-        }
-    });
+    const formatCurrency = amount => '₦' + amount.toLocaleString('en-NG');
 
-    function formatCurrency(amount) {
-        return '₦' + amount.toLocaleString('en-NG');
-    }
+    const formatDate = date => {
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
 
     function calculateSummary() {
-        const numBirds = parseInt(document.getElementById('numBirds').value) || 0;
-        const targetDaysInput = parseInt(document.getElementById('targetDays').value);
-        const targetWeightInput = parseInt(document.getElementById('targetWeight').value);
-        const userFcrInput = parseFloat(document.getElementById('targetFcr').value);
+        const numBirds = parseInt(DOM.numBirds.value, 10) || 0;
+        const targetDaysInput = parseInt(DOM.targetDays.value, 10);
+        const targetWeightInput = parseInt(DOM.targetWeight.value, 10);
+        const userFcrInput = parseFloat(DOM.targetFcr.value);
+        const stockingDateVal = DOM.stockingDate.value ? new Date(DOM.stockingDate.value) : new Date();
 
         if (numBirds <= 0) {
             alert('Please enter a valid positive number for birds.');
             return;
         }
 
-        let targetDay;
-        if (!isNaN(targetDaysInput) && targetDaysInput >= 1 && targetDaysInput <= 42) {
+        let targetDay = 35;
+        if (targetDaysInput >= 1 && targetDaysInput <= 42) {
             targetDay = targetDaysInput;
-        } else if (!isNaN(targetWeightInput) && targetWeightInput > 0) {
-            let closest = ALL_DAYS.reduce((prev, curr) => {
-                return (Math.abs(curr.bodyWeightG - targetWeightInput) < Math.abs(prev.bodyWeightG - targetWeightInput)) ? curr : prev;
-            });
-            targetDay = closest.day;
-        } else {
-            alert('Please specify either Target Days or Target Body Weight.');
-            return;
+        } else if (targetWeightInput > 0) {
+            let minDiff = Infinity;
+            for (let i = 1; i <= 42; i++) {
+                const diff = Math.abs(DAILY_FEED_MAP[i].bodyWeightG - targetWeightInput);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    targetDay = i;
+                }
+            }
         }
 
-        const dayEntry = ALL_DAYS.find(d => d.day === targetDay) || ALL_DAYS[ALL_DAYS.length - 1];
-        
-        // Use table FCR if available, fallback to day 7 FCR for early days 1-6
+        const dayEntry = DAILY_FEED_MAP[targetDay];
         const tableFcr = dayEntry.fcr || 0.86;
-
         const appliedFcr = (!isNaN(userFcrInput) && userFcrInput > 0) ? userFcrInput : tableFcr;
         const fcrScaleFactor = appliedFcr / tableFcr;
 
         let preStarterG = 0, starterG = 0, finisherG = 0;
 
-        ALL_DAYS.filter(d => d.day >= 1 && d.day <= targetDay).forEach(d => {
-            const feedForDay = d.rationG * numBirds * fcrScaleFactor;
-            if (d.day <= 7) preStarterG += feedForDay;
-            else if (d.day <= 21) starterG += feedForDay;
+        for (let d = 1; d <= targetDay; d++) {
+            const feedForDay = DAILY_FEED_MAP[d].rationG * numBirds * fcrScaleFactor;
+            if (d <= 7) preStarterG += feedForDay;
+            else if (d <= 21) starterG += feedForDay;
             else finisherG += feedForDay;
-        });
+        }
 
         const preStarterKg = preStarterG / 1000;
         const starterKg = starterG / 1000;
         const finisherKg = finisherG / 1000;
-
         const totalFeedKg = preStarterKg + starterKg + finisherKg;
 
-        // Stage 25kg bags calculation
         const preStarterBags = preStarterKg > 0 ? Math.ceil(preStarterKg / 25) : 0;
         const starterBags = starterKg > 0 ? Math.ceil(starterKg / 25) : 0;
         const finisherBags = finisherKg > 0 ? Math.ceil(finisherKg / 25) : 0;
-
         const totalBags25kg = preStarterBags + starterBags + finisherBags;
 
-        // Costs calculation
         const costPreStarter = preStarterBags * PRICES.PreStarter;
         const costStarter = starterBags * PRICES.Starter;
         const costFinisher = finisherBags * PRICES.Finisher;
-
         const totalCost = costPreStarter + costStarter + costFinisher;
 
-        // Save state
+        // Calculate Harvest Date (Stocking Date + Target Days)
+        const harvestDate = new Date(stockingDateVal);
+        harvestDate.setDate(harvestDate.getDate() + targetDay);
+
         currentSummary = {
             numBirds,
             targetWeight: dayEntry.bodyWeightG,
             targetDay,
+            stockingDateFormatted: formatDate(stockingDateVal),
+            harvestDateFormatted: formatDate(harvestDate),
             totalFeedKg: totalFeedKg.toFixed(1),
             totalBags25kg,
             appliedFcr: appliedFcr.toFixed(2),
@@ -516,31 +537,30 @@
             totalCost
         };
 
-        // Render UI Data
-        document.getElementById('resDays').innerText = `${targetDay} Days`;
-        document.getElementById('resTotalFeed').innerText = `${totalFeedKg.toFixed(1)} KG`;
-        document.getElementById('resBags').innerText = `${totalBags25kg} Bags`;
-        document.getElementById('resFcr').innerText = appliedFcr.toFixed(2);
+        // UI Batch Update
+        DOM.resStockingDate.innerText = currentSummary.stockingDateFormatted;
+        DOM.resHarvestDate.innerText = currentSummary.harvestDateFormatted;
+        DOM.resDays.innerText = `${targetDay} Days`;
+        DOM.resTotalFeed.innerText = `${currentSummary.totalFeedKg} KG`;
+        DOM.resBags.innerText = `${totalBags25kg} Bags`;
+        DOM.resFcr.innerText = currentSummary.appliedFcr;
 
-        document.getElementById('resPreStarter').innerText = `${preStarterKg.toFixed(1)} KG (${preStarterBags} bags)`;
-        document.getElementById('resStarter').innerText = `${starterKg.toFixed(1)} KG (${starterBags} bags)`;
-        document.getElementById('resFinisher').innerText = `${finisherKg.toFixed(1)} KG (${finisherBags} bags)`;
-        document.getElementById('resStageTotalBags').innerText = `${totalBags25kg} Bags`;
+        DOM.resPreStarter.innerText = `${currentSummary.preStarterKg} KG (${preStarterBags} bags)`;
+        DOM.resStarter.innerText = `${currentSummary.starterKg} KG (${starterBags} bags)`;
+        DOM.resFinisher.innerText = `${currentSummary.finisherKg} KG (${finisherBags} bags)`;
+        DOM.resStageTotalBags.innerText = `${totalBags25kg} Bags`;
 
-        // Update Detailed Calculations in Breakdown
-        document.getElementById('calcPreStarter').innerText = `${preStarterBags} bag${preStarterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.PreStarter)}`;
-        document.getElementById('calcStarter').innerText = `${starterBags} bag${starterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Starter)}`;
-        document.getElementById('calcFinisher').innerText = `${finisherBags} bag${finisherBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Finisher)}`;
+        DOM.calcPreStarter.innerText = `${preStarterBags} bag${preStarterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.PreStarter)}`;
+        DOM.calcStarter.innerText = `${starterBags} bag${starterBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Starter)}`;
+        DOM.calcFinisher.innerText = `${finisherBags} bag${finisherBags !== 1 ? 's' : ''} × ${formatCurrency(PRICES.Finisher)}`;
 
-        document.getElementById('costPreStarter').innerText = formatCurrency(costPreStarter);
-        document.getElementById('costStarter').innerText = formatCurrency(costStarter);
-        document.getElementById('costFinisher').innerText = formatCurrency(costFinisher);
-        document.getElementById('resTotalCost').innerText = formatCurrency(totalCost);
+        DOM.costPreStarter.innerText = formatCurrency(costPreStarter);
+        DOM.costStarter.innerText = formatCurrency(costStarter);
+        DOM.costFinisher.innerText = formatCurrency(costFinisher);
+        DOM.resTotalCost.innerText = formatCurrency(totalCost);
 
-        // Show summary card and scroll
-        const summaryCard = document.getElementById('summaryCard');
-        summaryCard.style.display = 'block';
-        summaryCard.scrollIntoView({ behavior: 'smooth' });
+        DOM.summaryCard.classList.add('active');
+        DOM.summaryCard.scrollIntoView({ behavior: 'smooth' });
     }
 
     function shareWhatsApp() {
@@ -552,7 +572,8 @@
         const text = `*Hendrix Broiler Plan*
 ---------------------------
 - Birds: ${currentSummary.numBirds.toLocaleString()}
-- Target Day: Day ${currentSummary.targetDay}
+- Stocking Date: ${currentSummary.stockingDateFormatted}
+- Recommended Harvest: ${currentSummary.harvestDateFormatted} (${currentSummary.targetDay} Days)
 - Expected Weight: ${currentSummary.targetWeight}g
 - Total Feed: ${currentSummary.totalFeedKg} KG (${currentSummary.totalBags25kg} x 25kg bags)
 - Applied FCR: ${currentSummary.appliedFcr}
@@ -570,8 +591,7 @@ COST BREAKDOWN & CALCULATIONS:
 ---------------------------
 *TOTAL FEED VALUE: ${formatCurrency(currentSummary.totalCost)}*`;
 
-        const encodedText = encodeURIComponent(text);
-        window.location.href = `whatsapp://send?text=${encodedText}`;
+        window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
     }
 
     document.getElementById('btnGenerate').addEventListener('click', calculateSummary);
