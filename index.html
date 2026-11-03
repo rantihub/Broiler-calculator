@@ -1,3 +1,5 @@
+Here is the updated code with your new bag prices integrated (Pre-Starter: ₦22,825, Starter: ₦22,075, and Finisher: ₦21,700).
+Replace your index.html file on GitHub with this code:
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -309,21 +311,21 @@
             <li>
                 <div>
                     <span>Pre-Starter</span>
-                    <span class="sub-detail" id="calcPreStarter">0 bags × ₦21,700</span>
+                    <span class="sub-detail" id="calcPreStarter">0 bags × ₦22,825</span>
                 </div>
                 <strong id="costPreStarter">₦0</strong>
             </li>
             <li>
                 <div>
                     <span>Starter</span>
-                    <span class="sub-detail" id="calcStarter">0 bags × ₦20,450</span>
+                    <span class="sub-detail" id="calcStarter">0 bags × ₦22,075</span>
                 </div>
                 <strong id="costStarter">₦0</strong>
             </li>
             <li>
                 <div>
                     <span>Finisher</span>
-                    <span class="sub-detail" id="calcFinisher">0 bags × ₦19,950</span>
+                    <span class="sub-detail" id="calcFinisher">0 bags × ₦21,700</span>
                 </div>
                 <strong id="costFinisher">₦0</strong>
             </li>
@@ -342,8 +344,8 @@
 </div>
 
 <script>
-    // Optimized Price Constants
-    const PRICES = Object.freeze({ PreStarter: 21700, Starter: 20450, Finisher: 19950 });
+    // Updated Price Constants per 25kg bag
+    const PRICES = Object.freeze({ PreStarter: 22825, Starter: 22075, Finisher: 21700 });
 
     // Pre-allocated Static Flat Array (Indexed by day for O(1) Access)
     const DAILY_FEED_MAP = (function() {
@@ -396,7 +398,7 @@
         return Object.freeze(raw);
     })();
 
-    // Cache DOM Elements for fast operations
+    // Cache DOM Elements
     const DOM = {
         stockingDate: document.getElementById('stockingDate'),
         numBirds: document.getElementById('numBirds'),
@@ -428,7 +430,6 @@
 
     let currentSummary = null;
 
-    // Fast Input Syncing
     DOM.targetDays.addEventListener('input', function() {
         const dayVal = parseInt(this.value, 10);
         if (dayVal >= 1 && dayVal <= 42) {
@@ -452,10 +453,7 @@
     });
 
     const formatCurrency = amount => '₦' + amount.toLocaleString('en-NG');
-
-    const formatDate = date => {
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    };
+    const formatDate = date => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
     function calculateSummary() {
         const numBirds = parseInt(DOM.numBirds.value, 10) || 0;
@@ -512,7 +510,6 @@
         const costFinisher = finisherBags * PRICES.Finisher;
         const totalCost = costPreStarter + costStarter + costFinisher;
 
-        // Calculate Harvest Date (Stocking Date + Target Days)
         const harvestDate = new Date(stockingDateVal);
         harvestDate.setDate(harvestDate.getDate() + targetDay);
 
@@ -537,7 +534,6 @@
             totalCost
         };
 
-        // UI Batch Update
         DOM.resStockingDate.innerText = currentSummary.stockingDateFormatted;
         DOM.resHarvestDate.innerText = currentSummary.harvestDateFormatted;
         DOM.resDays.innerText = `${targetDay} Days`;
@@ -600,3 +596,4 @@ COST BREAKDOWN & CALCULATIONS:
 
 </body>
 </html>
+
